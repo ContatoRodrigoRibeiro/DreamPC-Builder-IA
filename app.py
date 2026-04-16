@@ -23,7 +23,6 @@ tab_builder, tab_comparator, tab_catalog = st.tabs(["🚀 Builder IA", "🔄 Com
 
 # ====================== TAB 1 - BUILDER IA ======================
 with tab_builder:
-    # (mantive o código do builder exatamente como estava funcionando)
     st.subheader("✍️ Descreva o PC dos seus sonhos (com orçamento)")
 
     if 'prompt' not in st.session_state:
@@ -51,7 +50,7 @@ with tab_builder:
                 st.rerun()
 
     if st.button("🚀 Montar PC dos Sonhos com IA", type="primary", use_container_width=True):
-        # ... (código do builder permanece o mesmo - não alterei para não quebrar)
+        # (código do builder mantido igual)
         prompt_lower = st.session_state.prompt.lower()
         budget_match = re.search(r'(?:até|orçamento|de|até r\$|r\$)\s*(\d{1,3}(?:\.\d{3})*|\d+)(?:[.,]\d{2})?',
                                  prompt_lower)
@@ -154,29 +153,16 @@ with tab_comparator:
     if st.button("Comparar Produtos", type="primary", use_container_width=True) and len(produtos_selecionados) >= 2:
         df_compare = produtos_categoria[produtos_categoria['PRODUCT_NAME'].isin(produtos_selecionados)].copy()
 
-        # Formatação brasileira
         df_compare['Preço'] = df_compare['LIST_PRICE'].apply(
             lambda x: f"R$ {x:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.'))
 
-        # Colunas que queremos mostrar
-        cols_to_show = ['Produto', 'Preço', 'Clock_GHz', 'Cores', 'TDP_W', 'Descrição']
-
-        # Renomeia para português
-        df_compare = df_compare.rename(columns={
-            'PRODUCT_NAME': 'Produto',
-            'DESCRIPTION': 'Descrição',
-            'Clock_GHz': 'Clock (GHz)',
-            'Cores': 'Cores',
-            'TDP_W': 'TDP (Watts)'
-        })
-
-        # Tabela comparativa transposta (melhor visualização)
-        compare_table = df_compare[['Produto', 'Preço', 'Clock (GHz)', 'Cores', 'TDP (Watts)', 'Descrição']].set_index(
-            'Produto').T
+        # Tabela comparativa
+        compare_table = df_compare[['PRODUCT_NAME', 'Preço', 'Clock_GHz', 'Cores', 'TDP_W', 'DESCRIPTION']].set_index(
+            'PRODUCT_NAME').T
 
         st.dataframe(compare_table, use_container_width=True, hide_index=False)
     elif len(produtos_selecionados) >= 2:
-        st.info("Clique no botão 'Comparar Produtos' para ver o comparativo.")
+        st.info("Clique no botão acima para gerar a comparação.")
     else:
         st.info("Selecione pelo menos 2 produtos para comparar.")
 

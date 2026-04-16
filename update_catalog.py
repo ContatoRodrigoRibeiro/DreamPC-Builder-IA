@@ -1,42 +1,46 @@
 import pandas as pd
 import re
 
-print("🔄 Atualizando catálogo com specs técnicas...")
+print("🔄 Atualizando catálogo com todas as informações técnicas...")
 
 df = pd.read_csv('data/hardware_catalog.csv')
 
 
-# Função para extrair dados da coluna DESCRIPTION
+# Função robusta para extrair specs
 def extract_specs(text):
     text = str(text)
-    specs = {}
+    specs = {'Clock_GHz': None, 'Cores': None, 'TDP_W': None}
 
-    # Clock / Speed (GHz)
-    clock_match = re.search(r'Speed:?\s*([\d.]+)\s*GHz', text, re.I)
-    specs['Clock_GHz'] = float(clock_match.group(1)) if clock_match else None
+    # Clock (GHz)
+    clock = re.search(r'Speed:?\s*([\d.]+)\s*GHz', text, re.I)
+    if clock:
+        specs['Clock_GHz'] = float(clock.group(1))
 
     # Cores
-    cores_match = re.search(r'Cores:?\s*(\d+)', text, re.I)
-    specs['Cores'] = int(cores_match.group(1)) if cores_match else None
+    cores = re.search(r'Cores:?\s*(\d+)', text, re.I)
+    if cores:
+        specs['Cores'] = int(cores.group(1))
 
     # TDP (Watts)
-    tdp_match = re.search(r'TDP:?\s*(\d+)\s*W', text, re.I)
-    specs['TDP_W'] = int(tdp_match.group(1)) if tdp_match else None
+    tdp = re.search(r'TDP:?\s*(\d+)\s*W', text, re.I)
+    if tdp:
+        specs['TDP_W'] = int(tdp.group(1))
 
     return specs
 
 
 # Aplica a extração
 extracted = df['DESCRIPTION'].apply(extract_specs)
-df['Clock_GHz'] = extracted.apply(lambda x: x.get('Clock_GHz'))
-df['Cores'] = extracted.apply(lambda x: x.get('Cores'))
-df['TDP_W'] = extracted.apply(lambda x: x.get('TDP_W'))
+df['Clock_GHz'] = extracted.apply(lambda x: x['Clock_GHz'])
+df['Cores'] = extracted.apply(lambda x: x['Cores'])
+df['TDP_W'] = extracted.apply(lambda x: x['TDP_W'])
 
-# Formata preço brasileiro
-df['Preço'] = df['LIST_PRICE'].apply(lambda x: f"R$ {x:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.'))
+# Formata preço em Real brasileiro
+df['Preço'] = df['LIST_PRICE'].apply(
+    lambda x: f"R$ {float(x):,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.'))
 
-print(f"✅ Catálogo atualizado! Colunas novas: Clock_GHz, Cores, TDP_W")
-print(df[['CATEGORY_NAME', 'PRODUCT_NAME', 'Preço', 'Clock_GHz', 'Cores', 'TDP_W']].head())
+print("✅ Colunas criadas:")
+print(df[['CATEGORY_NAME', 'PRODUCT_NAME', 'Clock_GHz', 'Cores', 'TDP_W']].head())
 
 df.to_csv('data/hardware_catalog.csv', index=False, encoding='utf-8')
-print("🎉 Arquivo hardware_catalog.csv atualizado com sucesso!")
+print("🎉 hardware_catalog.csv atualizado com sucesso!")
