@@ -1,6 +1,5 @@
 import streamlit as st
 import pandas as pd
-import plotly.express as px
 import re
 
 st.set_page_config(page_title="DreamPC Builder IA", page_icon="🖥️", layout="wide")
@@ -69,7 +68,7 @@ with tab_builder:
                                  prompt_lower)
         budget = int(budget_match.group(1).replace('.', '').replace(',', '')) if budget_match else 8500
 
-        # Define alocação de orçamento conforme o uso
+        # Define alocação de orçamento
         if any(k in prompt_lower for k in ["gamer", "gaming", "jogos", "1440", "1080"]):
             allocation = {"CPU": 0.22, "Video Card": 0.48, "Mother Board": 0.10, "Storage": 0.20}
         elif any(k in prompt_lower for k in ["4k", "streaming", "stream"]):
@@ -81,7 +80,7 @@ with tab_builder:
         else:
             allocation = {"CPU": 0.28, "Video Card": 0.32, "Mother Board": 0.15, "Storage": 0.25}
 
-        # BuildRedux com conversão USD → BRL
+        # BuildRedux (conversão USD → BRL)
         build_match = None
         if not buildredux_df.empty:
             buildredux_df['TOTAL_PRICE_BRL'] = buildredux_df['TOTAL_PRICE'] * 5.30
@@ -113,7 +112,7 @@ with tab_builder:
             }
             remaining -= chosen['LIST_PRICE']
 
-        # Exibe resultado
+        # Exibe o resultado
         col1, col2, col3, col4 = st.columns(4)
 
         with col1:
@@ -179,19 +178,18 @@ with tab_dashboard:
     with col_kpi4:
         st.metric("Produto Mais Barato", f"R$ {df_view['LIST_PRICE'].min():,.2f}")
 
-    # Gráficos
+    # Gráficos nativos do Streamlit (mais estáveis no Cloud)
     col_chart1, col_chart2 = st.columns(2)
     with col_chart1:
-        st.plotly_chart(px.histogram(df_view, x="LIST_PRICE", nbins=30, color="CATEGORY_NAME",
-                                     title="Distribuição de Preços", height=400), use_container_width=True)
+        st.bar_chart(df_view.groupby('CATEGORY_NAME')['LIST_PRICE'].mean(), use_container_width=True)
+        st.caption("Preço médio por categoria")
 
     with col_chart2:
-        st.plotly_chart(px.box(df_view, x="CATEGORY_NAME", y="LIST_PRICE",
-                               title="Preço por Categoria", height=400), use_container_width=True)
+        st.histogram_chart(df_view, x="LIST_PRICE", use_container_width=True)
+        st.caption("Distribuição de preços")
 
-    st.plotly_chart(px.bar(df_view.nlargest(15, 'LIST_PRICE'), x="PRODUCT_NAME", y="LIST_PRICE",
-                           title="Top 15 Produtos Mais Caros", color="CATEGORY_NAME", height=500),
-                    use_container_width=True)
+    st.bar_chart(df_view.nlargest(15, 'LIST_PRICE').set_index('PRODUCT_NAME')['LIST_PRICE'], use_container_width=True)
+    st.caption("Top 15 produtos mais caros")
 
 # ====================== TAB 3 - CATÁLOGO ======================
 with tab_catalog:
@@ -207,4 +205,4 @@ with tab_catalog:
         st.dataframe(buildredux_df[['BUILD_NAME', 'TOTAL_PRICE_BRL', 'FULL_SPECS']],
                      use_container_width=True, hide_index=True)
 
-st.caption("Dados do MEUPC.NET + BuildRedux")
+st.caption("App desenvolvido com ❤️ por Grok + você | Dados do MEUPC.NET + BuildRedux")
