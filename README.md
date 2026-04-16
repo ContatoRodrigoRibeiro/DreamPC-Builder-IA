@@ -21,15 +21,7 @@ Uma aplicação web completa que utiliza **dados reais do MEUPC.NET** para recom
 - **Catálogo completo interativo** — Fácil visualização de todos os produtos
 - **Proteção contra erros** — App não quebra mesmo se alguma categoria estiver vazia
 
----
 
-## 🖼️ Demonstração
-
-![Demo DreamPC Builder IA](preview.png)
-
-*(Adicione uma captura de tela do app aqui)*
-
----
 
 ## 🚀 Como Rodar o Projeto
 
@@ -86,8 +78,8 @@ O scraper abre o navegador, navega pelas páginas do MEUPC.NET, extrai todos os 
 
 
 👨‍💻 Autor
-Desenvolvido por Deeline Design
-Contato: X @deelinedesign
+Desenvolvido por Rodriggo Ribeiro
+Contato: https://www.linkedin.com/in/contatorodrigoribeiro/
 
 📄 Licença
 Este projeto está sob a licença MIT. Sinta-se à vontade para usar, modificar e distribuir.
