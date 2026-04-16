@@ -21,15 +21,7 @@ Uma aplicação web completa que utiliza **dados reais do MEUPC.NET** para recom
 - **Catálogo completo interativo** — Fácil visualização de todos os produtos
 - **Proteção contra erros** — App não quebra mesmo se alguma categoria estiver vazia
 
----
 
-## 🖼️ Demonstração
-
-![Demo DreamPC Builder IA](preview.png)
-
-*(Adicione uma captura de tela do app aqui)*
-
----
 
 ## 🚀 Como Rodar o Projeto
 
