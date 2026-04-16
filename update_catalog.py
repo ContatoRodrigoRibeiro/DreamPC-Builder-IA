@@ -1,103 +1,42 @@
-import asyncio
-from playwright.async_api import async_playwright
 import pandas as pd
-from datetime import datetime
+import re
 
-CATEGORIES = {
-    "CPU": "https://meupc.net/processadores",
-    "Video Card": "https://meupc.net/placas-video",
-    "Mother Board": "https://meupc.net/placas-mae",
-    "Storage": "https://meupc.net/armazenamentos",
-}
+print("🔄 Atualizando catálogo com specs técnicas...")
+
+df = pd.read_csv('data/hardware_catalog.csv')
 
 
-async def scrape_category(page, category_name, url):
-    print(f"🔍 Buscando {category_name} → {url}")
-    await page.goto(url, wait_until="networkidle", timeout=60000)
+# Função para extrair dados da coluna DESCRIPTION
+def extract_specs(text):
+    text = str(text)
+    specs = {}
 
-    # Espera a tabela carregar
-    await page.wait_for_selector("table", timeout=30000)
-    print("   ✅ Tabela carregada!")
+    # Clock / Speed (GHz)
+    clock_match = re.search(r'Speed:?\s*([\d.]+)\s*GHz', text, re.I)
+    specs['Clock_GHz'] = float(clock_match.group(1)) if clock_match else None
 
-    # Scroll para carregar todos os produtos
-    for _ in range(12):
-        await page.evaluate("window.scrollBy(0, 4000)")
-        await asyncio.sleep(1.8)
+    # Cores
+    cores_match = re.search(r'Cores:?\s*(\d+)', text, re.I)
+    specs['Cores'] = int(cores_match.group(1)) if cores_match else None
 
-    # Pega o HTML da página e usa pd.read_html (muito mais confiável para tabelas)
-    html = await page.content()
-    tables = pd.read_html(html)
+    # TDP (Watts)
+    tdp_match = re.search(r'TDP:?\s*(\d+)\s*W', text, re.I)
+    specs['TDP_W'] = int(tdp_match.group(1)) if tdp_match else None
 
-    if not tables:
-        print("   ❌ Nenhuma tabela encontrada")
-        return []
-
-    df_table = tables[0]  # pega a primeira tabela da página
-
-    print(f"   ✅ Tabela com {len(df_table)} linhas detectada")
-
-    products = []
-    for _, row in df_table.iterrows():
-        try:
-            # Nome do produto (geralmente na coluna 1 ou 2)
-            name = str(row.iloc[1]) if pd.notna(row.iloc[1]) else str(row.iloc[0])
-            if "GHz" in name and len(name) < 10:  # evita pegar só frequência
-                name = str(row.iloc[2]) if len(str(row.iloc[2])) > 10 else name
-
-            # Preço (procura a coluna que tem "R$")
-            price = None
-            for col in row.index:
-                cell = str(row[col])
-                if "R$" in cell:
-                    price = float(''.join(filter(str.isdigit, cell.replace(',', '.')))) / 100
-                    break
-
-            if price is None or price < 10:
-                continue
-
-            # Descrição (junta as outras colunas úteis)
-            desc = " | ".join([str(row[col]) for col in row.index[2:7] if pd.notna(row[col])])
-
-            products.append({
-                "CATEGORY_NAME": category_name,
-                "PRODUCT_NAME": name.strip(),
-                "LIST_PRICE": round(price, 2),
-                "DESCRIPTION": desc.strip(),
-                "LAST_UPDATE": datetime.now().strftime("%Y-%m-%d %H:%M")
-            })
-        except:
-            continue
-
-    print(f"   ✅ Extraídos {len(products)} produtos válidos de {category_name}")
-    return products
+    return specs
 
 
-async def main():
-    async with async_playwright() as p:
-        browser = await p.chromium.launch(headless=False)
-        page = await browser.new_page()
+# Aplica a extração
+extracted = df['DESCRIPTION'].apply(extract_specs)
+df['Clock_GHz'] = extracted.apply(lambda x: x.get('Clock_GHz'))
+df['Cores'] = extracted.apply(lambda x: x.get('Cores'))
+df['TDP_W'] = extracted.apply(lambda x: x.get('TDP_W'))
 
-        all_products = []
+# Formata preço brasileiro
+df['Preço'] = df['LIST_PRICE'].apply(lambda x: f"R$ {x:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.'))
 
-        for cat_name, url in CATEGORIES.items():
-            products = await scrape_category(page, cat_name, url)
-            all_products.extend(products)
+print(f"✅ Catálogo atualizado! Colunas novas: Clock_GHz, Cores, TDP_W")
+print(df[['CATEGORY_NAME', 'PRODUCT_NAME', 'Preço', 'Clock_GHz', 'Cores', 'TDP_W']].head())
 
-        await browser.close()
-
-        if not all_products:
-            print("❌ Nenhum produto extraído. O site mudou novamente.")
-            return
-
-        df = pd.DataFrame(all_products)
-        df = df.sort_values(by=["CATEGORY_NAME", "LIST_PRICE"]).reset_index(drop=True)
-
-        df.to_csv("data/hardware_catalog.csv", index=False, encoding="utf-8")
-
-        print("\n🎉 CATÁLOGO ATUALIZADO COM SUCESSO!")
-        print(f"   Total de produtos: {len(df)}")
-        print(f"   Arquivo salvo: data/hardware_catalog.csv")
-
-
-if __name__ == "__main__":
-    asyncio.run(main())
+df.to_csv('data/hardware_catalog.csv', index=False, encoding='utf-8')
+print("🎉 Arquivo hardware_catalog.csv atualizado com sucesso!")
