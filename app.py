@@ -63,10 +63,12 @@ with tab_builder:
 
         prompt_lower = st.session_state.prompt.lower()
 
+        # Detecta orçamento
         budget_match = re.search(r'(?:até|orçamento|de|até r\$|r\$)\s*(\d{1,3}(?:\.\d{3})*|\d+)(?:[.,]\d{2})?',
                                  prompt_lower)
         budget = int(budget_match.group(1).replace('.', '').replace(',', '')) if budget_match else 8500
 
+        # Alocação inicial
         if any(k in prompt_lower for k in ["gamer", "gaming", "jogos", "1440", "1080"]):
             allocation = {"CPU": 0.22, "Video Card": 0.48, "Mother Board": 0.10, "Storage": 0.20}
         elif any(k in prompt_lower for k in ["4k", "streaming", "stream"]):
@@ -86,6 +88,7 @@ with tab_builder:
                 filtered['diff'] = abs(filtered['TOTAL_PRICE_BRL'] - budget)
                 build_match = filtered.sort_values('diff').iloc[0]
 
+        # Monta configuração inicial
         build = {}
         remaining = budget
 
@@ -99,6 +102,7 @@ with tab_builder:
 
             items = items.sort_values(by='LIST_PRICE')
             best = items[items['LIST_PRICE'] <= cat_budget]
+
             chosen = best.iloc[-1] if not best.empty else items.iloc[0]
 
             build[cat] = {
@@ -108,6 +112,27 @@ with tab_builder:
             }
             remaining -= chosen['LIST_PRICE']
 
+        # MELHORIA: Se sobrou muito dinheiro, tenta usar mais do orçamento (upgrade)
+        total = sum(item["price"] for item in build.values())
+        if total < budget * 0.75:  # Se usou menos de 75% do orçamento
+            # Upgrade no componente mais importante
+            if any(k in prompt_lower for k in ["gamer", "gaming", "jogos"]):
+                key_cat = "Video Card"
+            else:
+                key_cat = "CPU"
+
+            items = catalog_df[catalog_df['CATEGORY_NAME'] == key_cat].copy()
+            if not items.empty:
+                items = items.sort_values(by='LIST_PRICE')
+                upgrade = items[items['LIST_PRICE'] <= budget * 0.45].iloc[-1] if not items[
+                    items['LIST_PRICE'] <= budget * 0.45].empty else items.iloc[-1]
+                build[key_cat] = {
+                    "name": upgrade['PRODUCT_NAME'],
+                    "price": upgrade['LIST_PRICE'],
+                    "desc": upgrade.get('DESCRIPTION', '')[:100]
+                }
+
+        # Exibe resultado
         col1, col2, col3, col4 = st.columns(4)
 
         with col1:
@@ -137,11 +162,13 @@ with tab_builder:
             st.success(
                 f"💡 **Inspirado no BuildRedux**: {build_match['BUILD_NAME']} (R$ {build_match['TOTAL_PRICE_BRL']:,.2f})")
 
-        if total <= budget:
+        if total > budget:
+            st.warning("⚠️ Um pouco acima do orçamento.")
+        elif total < budget * 0.6:
+            st.info("⚠️ Configuração econômica. Ainda sobrou orçamento para upgrades.")
+        else:
             st.balloons()
             st.success("✅ Configuração perfeita dentro do orçamento!")
-        else:
-            st.warning("⚠️ Um pouco acima do orçamento.")
 
 # ====================== TAB 2 - COMPARADOR DE PEÇAS ======================
 with tab_comparator:
@@ -163,14 +190,9 @@ with tab_comparator:
 
     if st.button("Comparar Produtos", type="primary", use_container_width=True) and len(produtos_selecionados) >= 2:
         df_compare = produtos_categoria[produtos_categoria['PRODUCT_NAME'].isin(produtos_selecionados)].copy()
-
-        # Formata preço brasileiro
         df_compare['Preço'] = df_compare['LIST_PRICE'].apply(
             lambda x: f"R$ {x:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.'))
-
-        # Tabela comparativa
         compare_table = df_compare[['PRODUCT_NAME', 'Preço', 'DESCRIPTION']].set_index('PRODUCT_NAME').T
-
         st.dataframe(compare_table, use_container_width=True, hide_index=False)
     elif len(produtos_selecionados) >= 2:
         st.info("Clique no botão acima para gerar a comparação.")
@@ -183,10 +205,8 @@ with tab_catalog:
     tab_cat1, tab_cat2 = st.tabs(["MEUPC.NET - Componentes", "BuildRedux - Builds Prontos"])
 
     with tab_cat1:
-        # Segurança: só usa colunas que realmente existem
-        cols = ['CATEGORY_NAME', 'PRODUCT_NAME', 'LIST_PRICE', 'DESCRIPTION']
-        available_cols = [c for c in cols if c in catalog_df.columns]
-        st.dataframe(catalog_df[available_cols], use_container_width=True, hide_index=True)
+        st.dataframe(catalog_df[['CATEGORY_NAME', 'PRODUCT_NAME', 'LIST_PRICE', 'DESCRIPTION']],
+                     use_container_width=True, hide_index=True)
 
     with tab_cat2:
         buildredux_df['TOTAL_PRICE_BRL'] = buildredux_df['TOTAL_PRICE'] * 5.30
