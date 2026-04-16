@@ -147,6 +147,7 @@ with tab_builder:
 with tab_dashboard:
     st.subheader("📊 Dashboard Analítico de Hardware")
 
+    # Filtros
     col_filter1, col_filter2 = st.columns([1, 3])
     with col_filter1:
         selected_cat = st.selectbox("Filtrar por categoria", ["Todas"] + sorted(catalog_df['CATEGORY_NAME'].unique()))
@@ -162,6 +163,7 @@ with tab_dashboard:
         df_view = df_view[df_view['CATEGORY_NAME'] == selected_cat]
     df_view = df_view[(df_view['LIST_PRICE'] >= price_range[0]) & (df_view['LIST_PRICE'] <= price_range[1])]
 
+    # KPIs
     col_kpi1, col_kpi2, col_kpi3, col_kpi4 = st.columns(4)
     with col_kpi1:
         st.metric("Total de Produtos", len(df_view))
@@ -172,20 +174,25 @@ with tab_dashboard:
     with col_kpi4:
         st.metric("Produto Mais Barato", f"R$ {df_view['LIST_PRICE'].min():,.2f}")
 
-    col_chart1, col_chart2 = st.columns(2)
-    with col_chart1:
-        st.bar_chart(df_view.groupby('CATEGORY_NAME')['LIST_PRICE'].mean(), use_container_width=True)
-        st.caption("Preço médio por categoria")
+    # Comparativos específicos
+    st.divider()
+    st.subheader("🔥 Comparativos por Categoria")
 
-    with col_chart2:
-        # Histograma simples e seguro
-        hist = df_view['LIST_PRICE'].value_counts(bins=15, sort=False)
-        st.bar_chart(hist, use_container_width=True)
-        st.caption("Distribuição de preços")
+    col_comp1, col_comp2 = st.columns(2)
 
-    st.bar_chart(df_view.nlargest(15, 'LIST_PRICE').set_index('PRODUCT_NAME')['LIST_PRICE'],
-                 use_container_width=True)
-    st.caption("Top 15 produtos mais caros")
+    with col_comp1:
+        st.markdown("**Top 10 CPUs**")
+        cpus = df_view[df_view['CATEGORY_NAME'] == 'CPU'].nlargest(10, 'LIST_PRICE')
+        st.bar_chart(cpus.set_index('PRODUCT_NAME')['LIST_PRICE'], use_container_width=True)
+
+    with col_comp2:
+        st.markdown("**Top 10 Placas de Vídeo**")
+        gpus = df_view[df_view['CATEGORY_NAME'] == 'Video Card'].nlargest(10, 'LIST_PRICE')
+        st.bar_chart(gpus.set_index('PRODUCT_NAME')['LIST_PRICE'], use_container_width=True)
+
+    # Preço médio por categoria
+    st.bar_chart(df_view.groupby('CATEGORY_NAME')['LIST_PRICE'].mean(), use_container_width=True)
+    st.caption("Preço médio por categoria")
 
 # ====================== TAB 3 - CATÁLOGO ======================
 with tab_catalog:
