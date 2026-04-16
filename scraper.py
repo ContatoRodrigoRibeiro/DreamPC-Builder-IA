@@ -14,33 +14,34 @@ CATEGORIES = {
 
 async def scrape_category(page, category_name, url):
     print(f"🔍 Buscando {category_name} → {url}")
-    await page.goto(url, wait_until="networkidle", timeout=90000)
+    await page.goto(url, wait_until="networkidle", timeout=120000)
 
-    # Espera a tabela carregar
+    # Espera mais robusta pela tabela
     await page.wait_for_selector("table", timeout=60000)
-    print("✅ Tabela carregada!")
+    print(f"✅ Tabela de {category_name} carregada!")
 
-    # Scroll para carregar todos os produtos
-    for _ in range(15):
-        await page.evaluate("window.scrollBy(0, 5000)")
-        await asyncio.sleep(1.5)
+    # Scroll mais agressivo (especialmente importante para Storage)
+    for i in range(20):
+        await page.evaluate("window.scrollBy(0, 6000)")
+        await asyncio.sleep(1.8)
+        if i % 5 == 0:
+            print(f"   Scroll {i + 1}/20 em {category_name}...")
 
     html = await page.content()
     tables = pd.read_html(html)
 
     if not tables:
-        print("❌ Nenhuma tabela encontrada")
+        print(f"❌ Nenhuma tabela encontrada em {category_name}")
         return []
 
     df_table = tables[0]
-    print(f"✅ Tabela com {len(df_table)} linhas detectada")
+    print(f"✅ Tabela com {len(df_table)} linhas detectada em {category_name}")
 
     products = []
     for _, row in df_table.iterrows():
         try:
             name = str(row.iloc[1]) if pd.notna(row.iloc[1]) else str(row.iloc[0])
-            # Ajuste fino para nome do produto
-            if len(name) < 15 and "GHz" in name:
+            if len(name.strip()) < 10:
                 name = str(row.iloc[2])
 
             # Extrai preço
@@ -48,14 +49,13 @@ async def scrape_category(page, category_name, url):
             for col in row.index:
                 cell = str(row[col])
                 if "R$" in cell:
-                    clean_price = ''.join(filter(str.isdigit, cell.replace(',', '.')))
-                    price = float(clean_price) / 100
+                    clean = ''.join(filter(str.isdigit, cell.replace(',', '.')))
+                    price = float(clean) / 100
                     break
 
             if price is None or price < 10:
                 continue
 
-            # Descrição
             desc = " | ".join([str(row[col]) for col in row.index[2:8] if pd.notna(row[col])])
 
             products.append({
@@ -68,7 +68,7 @@ async def scrape_category(page, category_name, url):
         except:
             continue
 
-    print(f"✅ Extraídos {len(products)} produtos de {category_name}")
+    print(f"✅ Extraídos {len(products)} produtos válidos de {category_name}")
     return products
 
 
@@ -76,7 +76,7 @@ async def main():
     os.makedirs("data", exist_ok=True)
 
     async with async_playwright() as p:
-        browser = await p.chromium.launch(headless=False)  # False = você vê o navegador
+        browser = await p.chromium.launch(headless=False)
         page = await browser.new_page()
 
         all_products = []
@@ -87,7 +87,7 @@ async def main():
         await browser.close()
 
     if not all_products:
-        print("❌ Nenhum produto extraído. Site mudou?")
+        print("❌ Nenhum produto extraído.")
         return
 
     df = pd.DataFrame(all_products)
