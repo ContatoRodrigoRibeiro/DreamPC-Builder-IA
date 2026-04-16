@@ -151,28 +151,40 @@ with tab_comparator:
     with col1:
         categoria = st.selectbox("Escolha a categoria", ["CPU", "Video Card", "Mother Board", "Storage"])
 
-    produtos_categoria = catalog_df[catalog_df['CATEGORY_NAME'] == categoria]
+    produtos_categoria = catalog_df[catalog_df['CATEGORY_NAME'] == categoria].copy()
 
     with col2:
         produtos_selecionados = st.multiselect(
             "Selecione até 4 produtos para comparar",
             options=produtos_categoria['PRODUCT_NAME'].tolist(),
-            max_selections=4
+            max_selections=4,
+            placeholder="Escolha os produtos..."
         )
 
-    if st.button("Comparar Produtos", type="primary", use_container_width=True) and produtos_selecionados:
+    if st.button("Comparar Produtos", type="primary", use_container_width=True) and len(produtos_selecionados) >= 2:
         df_compare = produtos_categoria[produtos_categoria['PRODUCT_NAME'].isin(produtos_selecionados)].copy()
 
-        # Transpor para comparação lado a lado
-        df_compare = df_compare.set_index('PRODUCT_NAME').T
+        # Formata preço em Real brasileiro
+        df_compare['Preço'] = df_compare['LIST_PRICE'].apply(
+            lambda x: f"R$ {x:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.'))
 
+        # Renomeia colunas para Português
+        df_compare = df_compare.rename(columns={
+            'PRODUCT_NAME': 'Produto',
+            'DESCRIPTION': 'Descrição',
+            'CATEGORY_NAME': 'Categoria'
+        })
+
+        # Mostra tabela comparativa (transposta)
         st.dataframe(
-            df_compare,
+            df_compare[['Produto', 'Preço', 'Descrição']].set_index('Produto').T,
             use_container_width=True,
             hide_index=False
         )
+    elif len(produtos_selecionados) >= 2:
+        st.info("Clique no botão acima para gerar a comparação.")
     else:
-        st.info("Selecione os produtos acima e clique em 'Comparar Produtos'")
+        st.info("Selecione pelo menos 2 produtos para comparar.")
 
 # ====================== TAB 3 - CATÁLOGO ======================
 with tab_catalog:
