@@ -40,8 +40,13 @@ with tab_builder:
 
     st.markdown("**Sugestões rápidas:**")
     col_sug = st.columns(5)
-    examples = ["Gaming 1080p/1440p", "Gaming 4K / Streaming", "Edição de Vídeo / Render / 3D",
-                "Trabalho / Multitarefa / Escritório", "Estudos / Uso Geral"]
+    examples = [
+        "Gaming 1080p/1440p",
+        "Gaming 4K / Streaming",
+        "Edição de Vídeo / Render / 3D",
+        "Trabalho / Multitarefa / Escritório",
+        "Estudos / Uso Geral"
+    ]
 
     for i, ex in enumerate(examples):
         with col_sug[i]:
@@ -50,8 +55,14 @@ with tab_builder:
                 st.rerun()
 
     if st.button("🚀 Montar PC dos Sonhos com IA", type="primary", use_container_width=True):
-        # (código do builder mantido igual)
+        if not st.session_state.prompt.strip():
+            st.warning("Digite uma descrição ou escolha uma sugestão!")
+            st.stop()
+
+        st.success("🔥 IA analisando seu prompt + BuildRedux + MEUPC.NET...")
+
         prompt_lower = st.session_state.prompt.lower()
+
         budget_match = re.search(r'(?:até|orçamento|de|até r\$|r\$)\s*(\d{1,3}(?:\.\d{3})*|\d+)(?:[.,]\d{2})?',
                                  prompt_lower)
         budget = int(budget_match.group(1).replace('.', '').replace(',', '')) if budget_match else 8500
@@ -153,12 +164,12 @@ with tab_comparator:
     if st.button("Comparar Produtos", type="primary", use_container_width=True) and len(produtos_selecionados) >= 2:
         df_compare = produtos_categoria[produtos_categoria['PRODUCT_NAME'].isin(produtos_selecionados)].copy()
 
+        # Formata preço brasileiro
         df_compare['Preço'] = df_compare['LIST_PRICE'].apply(
             lambda x: f"R$ {x:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.'))
 
         # Tabela comparativa
-        compare_table = df_compare[['PRODUCT_NAME', 'Preço', 'Clock_GHz', 'Cores', 'TDP_W', 'DESCRIPTION']].set_index(
-            'PRODUCT_NAME').T
+        compare_table = df_compare[['PRODUCT_NAME', 'Preço', 'DESCRIPTION']].set_index('PRODUCT_NAME').T
 
         st.dataframe(compare_table, use_container_width=True, hide_index=False)
     elif len(produtos_selecionados) >= 2:
@@ -172,9 +183,10 @@ with tab_catalog:
     tab_cat1, tab_cat2 = st.tabs(["MEUPC.NET - Componentes", "BuildRedux - Builds Prontos"])
 
     with tab_cat1:
-        st.dataframe(
-            catalog_df[['CATEGORY_NAME', 'PRODUCT_NAME', 'LIST_PRICE', 'DESCRIPTION', 'Clock_GHz', 'Cores', 'TDP_W']],
-            use_container_width=True, hide_index=True)
+        # Segurança: só usa colunas que realmente existem
+        cols = ['CATEGORY_NAME', 'PRODUCT_NAME', 'LIST_PRICE', 'DESCRIPTION']
+        available_cols = [c for c in cols if c in catalog_df.columns]
+        st.dataframe(catalog_df[available_cols], use_container_width=True, hide_index=True)
 
     with tab_cat2:
         buildredux_df['TOTAL_PRICE_BRL'] = buildredux_df['TOTAL_PRICE'] * 5.30
