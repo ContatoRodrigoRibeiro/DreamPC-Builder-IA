@@ -5,7 +5,7 @@ import re
 st.set_page_config(page_title="DreamPC Builder IA", page_icon="🖥️", layout="wide")
 
 st.title("🖥️ DreamPC Builder IA")
-st.markdown("### A IA que entende o que você quer + Dashboard Analítico completo")
+st.markdown("### A IA que entende o que você quer + Comparador de Peças")
 
 
 # ====================== CARREGAR DADOS ======================
@@ -19,7 +19,7 @@ def load_data():
 catalog_df, buildredux_df = load_data()
 
 # ====================== TABS ======================
-tab_builder, tab_dashboard, tab_catalog = st.tabs(["🚀 Builder IA", "📊 Dashboard Analítico", "📦 Catálogo Completo"])
+tab_builder, tab_comparator, tab_catalog = st.tabs(["🚀 Builder IA", "🔄 Comparar Peças", "📦 Catálogo Completo"])
 
 # ====================== TAB 1 - BUILDER IA ======================
 with tab_builder:
@@ -143,56 +143,36 @@ with tab_builder:
         else:
             st.warning("⚠️ Um pouco acima do orçamento.")
 
-# ====================== TAB 2 - DASHBOARD ANALÍTICO ======================
-with tab_dashboard:
-    st.subheader("📊 Dashboard Analítico de Hardware")
+# ====================== TAB 2 - COMPARADOR DE PEÇAS ======================
+with tab_comparator:
+    st.subheader("🔄 Comparador de Peças")
 
-    # Filtros
-    col_filter1, col_filter2 = st.columns([1, 3])
-    with col_filter1:
-        selected_cat = st.selectbox("Filtrar por categoria", ["Todas"] + sorted(catalog_df['CATEGORY_NAME'].unique()))
+    col1, col2 = st.columns([1, 3])
+    with col1:
+        categoria = st.selectbox("Escolha a categoria", ["CPU", "Video Card", "Mother Board", "Storage"])
 
-    with col_filter2:
-        price_range = st.slider("Faixa de preço (R$)",
-                                min_value=int(catalog_df['LIST_PRICE'].min()),
-                                max_value=int(catalog_df['LIST_PRICE'].max()),
-                                value=(0, int(catalog_df['LIST_PRICE'].max())))
+    produtos_categoria = catalog_df[catalog_df['CATEGORY_NAME'] == categoria]
 
-    df_view = catalog_df.copy()
-    if selected_cat != "Todas":
-        df_view = df_view[df_view['CATEGORY_NAME'] == selected_cat]
-    df_view = df_view[(df_view['LIST_PRICE'] >= price_range[0]) & (df_view['LIST_PRICE'] <= price_range[1])]
+    with col2:
+        produtos_selecionados = st.multiselect(
+            "Selecione até 4 produtos para comparar",
+            options=produtos_categoria['PRODUCT_NAME'].tolist(),
+            max_selections=4
+        )
 
-    # KPIs
-    col_kpi1, col_kpi2, col_kpi3, col_kpi4 = st.columns(4)
-    with col_kpi1:
-        st.metric("Total de Produtos", len(df_view))
-    with col_kpi2:
-        st.metric("Preço Médio", f"R$ {df_view['LIST_PRICE'].mean():,.2f}")
-    with col_kpi3:
-        st.metric("Produto Mais Caro", f"R$ {df_view['LIST_PRICE'].max():,.2f}")
-    with col_kpi4:
-        st.metric("Produto Mais Barato", f"R$ {df_view['LIST_PRICE'].min():,.2f}")
+    if st.button("Comparar Produtos", type="primary", use_container_width=True) and produtos_selecionados:
+        df_compare = produtos_categoria[produtos_categoria['PRODUCT_NAME'].isin(produtos_selecionados)].copy()
 
-    # Comparativos específicos
-    st.divider()
-    st.subheader("🔥 Comparativos por Categoria")
+        # Transpor para comparação lado a lado
+        df_compare = df_compare.set_index('PRODUCT_NAME').T
 
-    col_comp1, col_comp2 = st.columns(2)
-
-    with col_comp1:
-        st.markdown("**Top 10 CPUs**")
-        cpus = df_view[df_view['CATEGORY_NAME'] == 'CPU'].nlargest(10, 'LIST_PRICE')
-        st.bar_chart(cpus.set_index('PRODUCT_NAME')['LIST_PRICE'], use_container_width=True)
-
-    with col_comp2:
-        st.markdown("**Top 10 Placas de Vídeo**")
-        gpus = df_view[df_view['CATEGORY_NAME'] == 'Video Card'].nlargest(10, 'LIST_PRICE')
-        st.bar_chart(gpus.set_index('PRODUCT_NAME')['LIST_PRICE'], use_container_width=True)
-
-    # Preço médio por categoria
-    st.bar_chart(df_view.groupby('CATEGORY_NAME')['LIST_PRICE'].mean(), use_container_width=True)
-    st.caption("Preço médio por categoria")
+        st.dataframe(
+            df_compare,
+            use_container_width=True,
+            hide_index=False
+        )
+    else:
+        st.info("Selecione os produtos acima e clique em 'Comparar Produtos'")
 
 # ====================== TAB 3 - CATÁLOGO ======================
 with tab_catalog:
