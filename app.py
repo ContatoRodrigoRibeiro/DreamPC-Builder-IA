@@ -63,12 +63,10 @@ with tab_builder:
 
         prompt_lower = st.session_state.prompt.lower()
 
-        # Detecta orçamento no prompt
         budget_match = re.search(r'(?:até|orçamento|de|até r\$|r\$)\s*(\d{1,3}(?:\.\d{3})*|\d+)(?:[.,]\d{2})?',
                                  prompt_lower)
         budget = int(budget_match.group(1).replace('.', '').replace(',', '')) if budget_match else 8500
 
-        # Define alocação de orçamento
         if any(k in prompt_lower for k in ["gamer", "gaming", "jogos", "1440", "1080"]):
             allocation = {"CPU": 0.22, "Video Card": 0.48, "Mother Board": 0.10, "Storage": 0.20}
         elif any(k in prompt_lower for k in ["4k", "streaming", "stream"]):
@@ -80,7 +78,6 @@ with tab_builder:
         else:
             allocation = {"CPU": 0.28, "Video Card": 0.32, "Mother Board": 0.15, "Storage": 0.25}
 
-        # BuildRedux (conversão USD → BRL)
         build_match = None
         if not buildredux_df.empty:
             buildredux_df['TOTAL_PRICE_BRL'] = buildredux_df['TOTAL_PRICE'] * 5.30
@@ -89,7 +86,6 @@ with tab_builder:
                 filtered['diff'] = abs(filtered['TOTAL_PRICE_BRL'] - budget)
                 build_match = filtered.sort_values('diff').iloc[0]
 
-        # Monta o PC
         build = {}
         remaining = budget
 
@@ -112,7 +108,6 @@ with tab_builder:
             }
             remaining -= chosen['LIST_PRICE']
 
-        # Exibe o resultado
         col1, col2, col3, col4 = st.columns(4)
 
         with col1:
@@ -178,17 +173,21 @@ with tab_dashboard:
     with col_kpi4:
         st.metric("Produto Mais Barato", f"R$ {df_view['LIST_PRICE'].min():,.2f}")
 
-    # Gráficos nativos do Streamlit (mais estáveis no Cloud)
+    # Gráficos nativos e estáveis
     col_chart1, col_chart2 = st.columns(2)
     with col_chart1:
         st.bar_chart(df_view.groupby('CATEGORY_NAME')['LIST_PRICE'].mean(), use_container_width=True)
         st.caption("Preço médio por categoria")
 
     with col_chart2:
-        st.histogram_chart(df_view, x="LIST_PRICE", use_container_width=True)
+        # Histograma simples com binning
+        df_view['Faixa de Preço'] = pd.cut(df_view['LIST_PRICE'], bins=15)
+        hist_data = df_view.groupby('Faixa de Preço', observed=True).size()
+        st.bar_chart(hist_data, use_container_width=True)
         st.caption("Distribuição de preços")
 
-    st.bar_chart(df_view.nlargest(15, 'LIST_PRICE').set_index('PRODUCT_NAME')['LIST_PRICE'], use_container_width=True)
+    st.bar_chart(df_view.nlargest(15, 'LIST_PRICE').set_index('PRODUCT_NAME')['LIST_PRICE'],
+                 use_container_width=True)
     st.caption("Top 15 produtos mais caros")
 
 # ====================== TAB 3 - CATÁLOGO ======================
@@ -205,4 +204,4 @@ with tab_catalog:
         st.dataframe(buildredux_df[['BUILD_NAME', 'TOTAL_PRICE_BRL', 'FULL_SPECS']],
                      use_container_width=True, hide_index=True)
 
-st.caption("App desenvolvido com ❤️ por Grok + você | Dados do MEUPC.NET + BuildRedux")
+st.caption("Dados do MEUPC.NET + BuildRedux")
