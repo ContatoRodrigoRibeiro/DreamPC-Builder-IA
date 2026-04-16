@@ -162,7 +162,6 @@ with tab_dashboard:
         df_view = df_view[df_view['CATEGORY_NAME'] == selected_cat]
     df_view = df_view[(df_view['LIST_PRICE'] >= price_range[0]) & (df_view['LIST_PRICE'] <= price_range[1])]
 
-    # KPIs
     col_kpi1, col_kpi2, col_kpi3, col_kpi4 = st.columns(4)
     with col_kpi1:
         st.metric("Total de Produtos", len(df_view))
@@ -173,17 +172,15 @@ with tab_dashboard:
     with col_kpi4:
         st.metric("Produto Mais Barato", f"R$ {df_view['LIST_PRICE'].min():,.2f}")
 
-    # Gráficos nativos e estáveis
     col_chart1, col_chart2 = st.columns(2)
     with col_chart1:
         st.bar_chart(df_view.groupby('CATEGORY_NAME')['LIST_PRICE'].mean(), use_container_width=True)
         st.caption("Preço médio por categoria")
 
     with col_chart2:
-        # Histograma simples com binning
-        df_view['Faixa de Preço'] = pd.cut(df_view['LIST_PRICE'], bins=15)
-        hist_data = df_view.groupby('Faixa de Preço', observed=True).size()
-        st.bar_chart(hist_data, use_container_width=True)
+        # Histograma simples e seguro
+        hist = df_view['LIST_PRICE'].value_counts(bins=15, sort=False)
+        st.bar_chart(hist, use_container_width=True)
         st.caption("Distribuição de preços")
 
     st.bar_chart(df_view.nlargest(15, 'LIST_PRICE').set_index('PRODUCT_NAME')['LIST_PRICE'],
