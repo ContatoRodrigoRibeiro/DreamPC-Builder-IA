@@ -68,17 +68,17 @@ with tab_builder:
                                  prompt_lower)
         budget = int(budget_match.group(1).replace('.', '').replace(',', '')) if budget_match else 8500
 
-        # Alocação inicial
+        # Alocação inicial (mais agressiva)
         if any(k in prompt_lower for k in ["gamer", "gaming", "jogos", "1440", "1080"]):
-            allocation = {"CPU": 0.22, "Video Card": 0.48, "Mother Board": 0.10, "Storage": 0.20}
+            allocation = {"CPU": 0.20, "Video Card": 0.50, "Mother Board": 0.10, "Storage": 0.20}
         elif any(k in prompt_lower for k in ["4k", "streaming", "stream"]):
-            allocation = {"CPU": 0.25, "Video Card": 0.50, "Mother Board": 0.10, "Storage": 0.15}
+            allocation = {"CPU": 0.22, "Video Card": 0.52, "Mother Board": 0.10, "Storage": 0.16}
         elif any(k in prompt_lower for k in ["edição", "vídeo", "render", "3d", "photoshop", "premiere"]):
-            allocation = {"CPU": 0.38, "Video Card": 0.35, "Mother Board": 0.12, "Storage": 0.15}
+            allocation = {"CPU": 0.40, "Video Card": 0.35, "Mother Board": 0.12, "Storage": 0.13}
         elif any(k in prompt_lower for k in ["trabalho", "escritório", "multitarefa", "produtividade"]):
-            allocation = {"CPU": 0.30, "Video Card": 0.25, "Mother Board": 0.15, "Storage": 0.30}
+            allocation = {"CPU": 0.35, "Video Card": 0.25, "Mother Board": 0.15, "Storage": 0.25}
         else:
-            allocation = {"CPU": 0.28, "Video Card": 0.32, "Mother Board": 0.15, "Storage": 0.25}
+            allocation = {"CPU": 0.28, "Video Card": 0.35, "Mother Board": 0.15, "Storage": 0.22}
 
         build_match = None
         if not buildredux_df.empty:
@@ -102,7 +102,6 @@ with tab_builder:
 
             items = items.sort_values(by='LIST_PRICE')
             best = items[items['LIST_PRICE'] <= cat_budget]
-
             chosen = best.iloc[-1] if not best.empty else items.iloc[0]
 
             build[cat] = {
@@ -112,24 +111,25 @@ with tab_builder:
             }
             remaining -= chosen['LIST_PRICE']
 
-        # MELHORIA: Se sobrou muito dinheiro, tenta usar mais do orçamento (upgrade)
+        # MELHORIA: Se sobrou muito orçamento, faz upgrade automático no componente principal
         total = sum(item["price"] for item in build.values())
-        if total < budget * 0.75:  # Se usou menos de 75% do orçamento
-            # Upgrade no componente mais importante
-            if any(k in prompt_lower for k in ["gamer", "gaming", "jogos"]):
-                key_cat = "Video Card"
+        if total < budget * 0.85:  # Se gastou menos de 85% do orçamento
+            if any(k in prompt_lower for k in ["gamer", "gaming", "jogos", "1440", "1080", "4k"]):
+                upgrade_cat = "Video Card"
             else:
-                key_cat = "CPU"
+                upgrade_cat = "CPU"
 
-            items = catalog_df[catalog_df['CATEGORY_NAME'] == key_cat].copy()
+            items = catalog_df[catalog_df['CATEGORY_NAME'] == upgrade_cat].copy()
             if not items.empty:
                 items = items.sort_values(by='LIST_PRICE')
-                upgrade = items[items['LIST_PRICE'] <= budget * 0.45].iloc[-1] if not items[
-                    items['LIST_PRICE'] <= budget * 0.45].empty else items.iloc[-1]
-                build[key_cat] = {
-                    "name": upgrade['PRODUCT_NAME'],
-                    "price": upgrade['LIST_PRICE'],
-                    "desc": upgrade.get('DESCRIPTION', '')[:100]
+                upgrade_budget = int(budget * 0.45)
+                best_upgrade = items[items['LIST_PRICE'] <= upgrade_budget]
+                chosen_upgrade = best_upgrade.iloc[-1] if not best_upgrade.empty else items.iloc[-1]
+
+                build[upgrade_cat] = {
+                    "name": chosen_upgrade['PRODUCT_NAME'],
+                    "price": chosen_upgrade['LIST_PRICE'],
+                    "desc": chosen_upgrade.get('DESCRIPTION', '')[:100]
                 }
 
         # Exibe resultado
@@ -164,7 +164,7 @@ with tab_builder:
 
         if total > budget:
             st.warning("⚠️ Um pouco acima do orçamento.")
-        elif total < budget * 0.6:
+        elif total < budget * 0.65:
             st.info("⚠️ Configuração econômica. Ainda sobrou orçamento para upgrades.")
         else:
             st.balloons()
@@ -213,4 +213,4 @@ with tab_catalog:
         st.dataframe(buildredux_df[['BUILD_NAME', 'TOTAL_PRICE_BRL', 'FULL_SPECS']],
                      use_container_width=True, hide_index=True)
 
-st.caption(" Dados do MEUPC.NET + BuildRedux")
+st.caption("Dados do MEUPC.NET + BuildRedux")
