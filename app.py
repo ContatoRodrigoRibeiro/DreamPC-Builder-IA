@@ -137,11 +137,13 @@ with tab_builder:
             st.success(
                 f"💡 **Inspirado no BuildRedux**: {build_match['BUILD_NAME']} (R$ {build_match['TOTAL_PRICE_BRL']:,.2f})")
 
-        if total <= budget:
+        if total > budget:
+            st.warning("⚠️ Um pouco acima do orçamento.")
+        elif total < budget * 0.65:  # bem abaixo do orçamento
+            st.info("⚠️ Configuração econômica. Ainda sobrou bastante orçamento para upgrades!")
+        else:
             st.balloons()
             st.success("✅ Configuração perfeita dentro do orçamento!")
-        else:
-            st.warning("⚠️ Um pouco acima do orçamento.")
 
 # ====================== TAB 2 - COMPARADOR DE PEÇAS ======================
 with tab_comparator:
