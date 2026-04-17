@@ -186,4 +186,4 @@ with tab_catalog:
         st.dataframe(buildredux_df[['BUILD_NAME', 'TOTAL_PRICE_BRL', 'FULL_SPECS']],
                      width='stretch', hide_index=True)
 
-st.caption("App desenvolvido com ❤️ por Grok + você | Dados do MEUPC.NET + BuildRedux")
+st.caption(" Dados do MEUPC.NET + BuildRedux")
