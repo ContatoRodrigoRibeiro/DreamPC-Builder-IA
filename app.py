@@ -11,18 +11,14 @@ st.markdown("### A IA que finalmente entende seu orçamento")
 # ====================== CARREGAR DADOS ======================
 @st.cache_data
 def load_data():
-    try:
-        meupc = pd.read_csv('data/hardware_catalog.csv')
-        buildredux = pd.read_csv('data/buildredux_builds.csv')
-        return meupc, buildredux
-    except:
-        st.error("❌ Arquivos de dados não encontrados. Certifique-se de ter a pasta 'data/' com os CSVs.")
-        st.stop()
+    meupc = pd.read_csv('data/hardware_catalog.csv')
+    buildredux = pd.read_csv('data/buildredux_builds.csv')
+    return meupc, buildredux
 
 
 catalog_df, buildredux_df = load_data()
 
-# ====================== TAB BUILDER ======================
+# ====================== TABS ======================
 tab_builder, tab_comparator, tab_catalog = st.tabs(["🚀 Builder IA", "🔄 Comparar Peças", "📦 Catálogo Completo"])
 
 with tab_builder:
@@ -34,7 +30,7 @@ with tab_builder:
     prompt = st.text_area(
         "Digite aqui",
         value=st.session_state.prompt,
-        placeholder="Ex: Quero um pc gamer bom para 1440p de R$ 4500",
+        placeholder="Ex: Quero um pc para estudar de R$ 3000",
         height=130,
         label_visibility="collapsed"
     )
@@ -69,15 +65,24 @@ with tab_builder:
         else:
             use_case = "general"
 
-        # ALOCAÇÃO AGRESSIVA (soma = 100%)
+        # ALOCAÇÃO + LIMITES MÁXIMOS POR CATEGORIA (para evitar peças enterprise)
         alloc = {
-            "gaming": {"CPU": 0.20, "Video Card": 0.50, "Mother Board": 0.12, "Storage": 0.18},
-            "4k": {"CPU": 0.18, "Video Card": 0.55, "Mother Board": 0.10, "Storage": 0.17},
+            "gaming": {"CPU": 0.22, "Video Card": 0.48, "Mother Board": 0.12, "Storage": 0.18},
+            "4k": {"CPU": 0.20, "Video Card": 0.52, "Mother Board": 0.10, "Storage": 0.18},
             "editing": {"CPU": 0.38, "Video Card": 0.35, "Mother Board": 0.12, "Storage": 0.15},
             "work": {"CPU": 0.35, "Video Card": 0.25, "Mother Board": 0.15, "Storage": 0.25},
-            "general": {"CPU": 0.30, "Video Card": 0.30, "Mother Board": 0.15, "Storage": 0.25}
+            "general": {"CPU": 0.30, "Video Card": 0.25, "Mother Board": 0.15, "Storage": 0.30}
         }[use_case]
 
+        max_price = {
+            "gaming": {"CPU": 2500, "Video Card": 6000, "Mother Board": 1500, "Storage": 800},
+            "4k": {"CPU": 3000, "Video Card": 8000, "Mother Board": 1800, "Storage": 1000},
+            "editing": {"CPU": 3500, "Video Card": 5000, "Mother Board": 1800, "Storage": 800},
+            "work": {"CPU": 1800, "Video Card": 1500, "Mother Board": 1200, "Storage": 600},
+            "general": {"CPU": 1200, "Video Card": 1200, "Mother Board": 1000, "Storage": 500}
+        }[use_case]
+
+        # MONTAGEM
         build = {}
         for cat in ["CPU", "Video Card", "Mother Board", "Storage"]:
             target = int(budget * alloc[cat])
@@ -87,10 +92,16 @@ with tab_builder:
                 build[cat] = {"name": f"Sem {cat}", "price": 0, "desc": ""}
                 continue
 
-            # ORDENADO DO MAIS CARO PARA O MAIS BARATO
-            items = items.sort_values(by='LIST_PRICE', ascending=False)
-            possible = items[items['LIST_PRICE'] <= target]
-            chosen = possible.iloc[0] if not possible.empty else items.iloc[0]
+            # ORDENADO DO MAIS BARATO PARA O MAIS CARO
+            items = items.sort_values(by='LIST_PRICE')
+
+            # FILTRA APENAS O QUE CABE NO ORÇAMENTO DA CATEGORIA E NO LIMITE MÁXIMO
+            possible = items[(items['LIST_PRICE'] <= target) & (items['LIST_PRICE'] <= max_price[cat])]
+
+            if not possible.empty:
+                chosen = possible.iloc[-1]  # o mais caro que ainda cabe
+            else:
+                chosen = items.iloc[0]  # fallback mais barato
 
             build[cat] = {
                 "name": chosen['PRODUCT_NAME'],
@@ -98,29 +109,21 @@ with tab_builder:
                 "desc": str(chosen.get('DESCRIPTION', ''))[:100]
             }
 
-        # LOOP DE UPGRADE ATÉ CHEGAR PERTO DO ORÇAMENTO
+        # UPGRADE FINAL (só se estiver muito abaixo)
         total = sum(v["price"] for v in build.values())
-        for _ in range(12):  # máximo 12 upgrades
-            if total >= budget * 0.88:
-                break
-            # Decide qual componente upar
+        if total < budget * 0.75:
             upgrade_cat = "Video Card" if use_case in ["gaming", "4k"] else "CPU"
             items = catalog_df[catalog_df['CATEGORY_NAME'] == upgrade_cat].copy()
-            if items.empty:
-                break
-            items = items.sort_values(by='LIST_PRICE', ascending=False)
-            current = build[upgrade_cat]["price"]
-            better = items[items['LIST_PRICE'] > current]
-            if better.empty:
-                break
-            new_item = better.iloc[0]
-            if total - current + new_item['LIST_PRICE'] <= budget * 1.08:
+            items = items.sort_values(by='LIST_PRICE')
+            possible = items[items['LIST_PRICE'] <= budget * 0.45]
+            if not possible.empty:
                 build[upgrade_cat] = {
-                    "name": new_item['PRODUCT_NAME'],
-                    "price": float(new_item['LIST_PRICE']),
-                    "desc": str(new_item.get('DESCRIPTION', ''))[:100]
+                    "name": possible.iloc[-1]['PRODUCT_NAME'],
+                    "price": float(possible.iloc[-1]['LIST_PRICE']),
+                    "desc": str(possible.iloc[-1].get('DESCRIPTION', ''))[:100]
                 }
-                total = sum(v["price"] for v in build.values())
+
+        total = sum(v["price"] for v in build.values())
 
         # EXIBE
         cols = st.columns(4)
@@ -132,7 +135,7 @@ with tab_builder:
 
         st.markdown(f"### 💰 **Total estimado: R$ {total:,.2f}**".replace(",", "."))
 
-        if total > budget:
+        if total > budget * 1.05:
             st.warning("⚠️ Um pouco acima do orçamento")
         elif total < budget * 0.70:
             st.info("⚠️ Configuração econômica – ainda tem margem")
