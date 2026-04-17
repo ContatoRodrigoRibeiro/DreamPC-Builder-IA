@@ -63,7 +63,7 @@ with tab_builder:
 
         prompt_lower = st.session_state.prompt.lower()
 
-        # Detecta orçamento
+        # Detecta o orçamento informado
         budget_match = re.search(r'(?:até|orçamento|de|até r\$|r\$)\s*(\d{1,3}(?:\.\d{3})*|\d+)(?:[.,]\d{2})?',
                                  prompt_lower)
         budget = int(budget_match.group(1).replace('.', '').replace(',', '')) if budget_match else 8500
@@ -88,7 +88,7 @@ with tab_builder:
                 filtered['diff'] = abs(filtered['TOTAL_PRICE_BRL'] - budget)
                 build_match = filtered.sort_values('diff').iloc[0]
 
-        # Monta configuração inicial
+        # Monta a configuração inicial
         build = {}
         remaining = budget
 
@@ -111,7 +111,7 @@ with tab_builder:
             }
             remaining -= chosen['LIST_PRICE']
 
-        # UPGRADE AUTOMÁTICO se o total ficou muito abaixo do orçamento
+        # UPGRADE AUTOMÁTICO se o total ficou muito baixo
         total = sum(item["price"] for item in build.values())
         if total < budget * 0.85:
             if any(k in prompt_lower for k in ["gamer", "gaming", "jogos", "1440", "1080", "4k"]):
@@ -214,4 +214,4 @@ with tab_catalog:
         st.dataframe(buildredux_df[['BUILD_NAME', 'TOTAL_PRICE_BRL', 'FULL_SPECS']],
                      width='stretch', hide_index=True)
 
-st.caption("Dados do MEUPC.NET + BuildRedux")
+st.caption(" Dados do MEUPC.NET + BuildRedux")
