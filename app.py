@@ -63,12 +63,12 @@ with tab_builder:
 
         prompt_lower = st.session_state.prompt.lower()
 
-        # Detecta o orçamento
+        # Detecta orçamento
         budget_match = re.search(r'(?:até|orçamento|de|até r\$|r\$)\s*(\d{1,3}(?:\.\d{3})*|\d+)(?:[.,]\d{2})?',
                                  prompt_lower)
         budget = int(budget_match.group(1).replace('.', '').replace(',', '')) if budget_match else 8500
 
-        # Alocação mais agressiva (usa quase todo o orçamento)
+        # Alocação agressiva para usar quase todo o orçamento
         if any(k in prompt_lower for k in ["gamer", "gaming", "jogos", "1440", "1080"]):
             allocation = {"CPU": 0.20, "Video Card": 0.50, "Mother Board": 0.10, "Storage": 0.20}
         elif any(k in prompt_lower for k in ["4k", "streaming", "stream"]):
@@ -88,7 +88,7 @@ with tab_builder:
                 filtered['diff'] = abs(filtered['TOTAL_PRICE_BRL'] - budget)
                 build_match = filtered.sort_values('diff').iloc[0]
 
-        # Monta a configuração
+        # Monta configuração inicial
         build = {}
         remaining = budget
 
@@ -111,9 +111,9 @@ with tab_builder:
             }
             remaining -= chosen['LIST_PRICE']
 
-        # UPGRADE AUTOMÁTICO se o total ficou muito baixo
+        # UPGRADE AUTOMÁTICO se o total ficou muito abaixo do orçamento
         total = sum(item["price"] for item in build.values())
-        if total < budget * 0.85:  # Se gastou menos de 85% do orçamento
+        if total < budget * 0.85:
             if any(k in prompt_lower for k in ["gamer", "gaming", "jogos", "1440", "1080", "4k"]):
                 upgrade_cat = "Video Card"
             else:
@@ -214,4 +214,4 @@ with tab_catalog:
         st.dataframe(buildredux_df[['BUILD_NAME', 'TOTAL_PRICE_BRL', 'FULL_SPECS']],
                      width='stretch', hide_index=True)
 
-st.caption(" Dados do MEUPC.NET + BuildRedux")
+st.caption("Dados do MEUPC.NET + BuildRedux")
