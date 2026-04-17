@@ -63,20 +63,22 @@ with tab_builder:
 
         prompt_lower = st.session_state.prompt.lower()
 
+        # Detecta o orçamento informado pelo usuário
         budget_match = re.search(r'(?:até|orçamento|de|até r\$|r\$)\s*(\d{1,3}(?:\.\d{3})*|\d+)(?:[.,]\d{2})?',
                                  prompt_lower)
         budget = int(budget_match.group(1).replace('.', '').replace(',', '')) if budget_match else 8500
 
+        # Alocação inicial de orçamento (mais agressiva para usar melhor o valor solicitado)
         if any(k in prompt_lower for k in ["gamer", "gaming", "jogos", "1440", "1080"]):
             allocation = {"CPU": 0.22, "Video Card": 0.48, "Mother Board": 0.10, "Storage": 0.20}
         elif any(k in prompt_lower for k in ["4k", "streaming", "stream"]):
-            allocation = {"CPU": 0.25, "Video Card": 0.50, "Mother Board": 0.10, "Storage": 0.15}
+            allocation = {"CPU": 0.22, "Video Card": 0.52, "Mother Board": 0.10, "Storage": 0.16}
         elif any(k in prompt_lower for k in ["edição", "vídeo", "render", "3d", "photoshop", "premiere"]):
-            allocation = {"CPU": 0.38, "Video Card": 0.35, "Mother Board": 0.12, "Storage": 0.15}
+            allocation = {"CPU": 0.40, "Video Card": 0.35, "Mother Board": 0.12, "Storage": 0.13}
         elif any(k in prompt_lower for k in ["trabalho", "escritório", "multitarefa", "produtividade"]):
-            allocation = {"CPU": 0.30, "Video Card": 0.25, "Mother Board": 0.15, "Storage": 0.30}
+            allocation = {"CPU": 0.35, "Video Card": 0.25, "Mother Board": 0.15, "Storage": 0.25}
         else:
-            allocation = {"CPU": 0.28, "Video Card": 0.32, "Mother Board": 0.15, "Storage": 0.25}
+            allocation = {"CPU": 0.28, "Video Card": 0.35, "Mother Board": 0.15, "Storage": 0.22}
 
         build_match = None
         if not buildredux_df.empty:
@@ -86,6 +88,7 @@ with tab_builder:
                 filtered['diff'] = abs(filtered['TOTAL_PRICE_BRL'] - budget)
                 build_match = filtered.sort_values('diff').iloc[0]
 
+        # Monta a configuração inicial
         build = {}
         remaining = budget
 
@@ -108,6 +111,28 @@ with tab_builder:
             }
             remaining -= chosen['LIST_PRICE']
 
+        # MELHORIA: Se o total ficou muito abaixo do orçamento, faz upgrade automático
+        total = sum(item["price"] for item in build.values())
+        if total < budget * 0.85:  # Se usou menos de 85% do orçamento
+            if any(k in prompt_lower for k in ["gamer", "gaming", "jogos", "1440", "1080", "4k"]):
+                upgrade_cat = "Video Card"
+            else:
+                upgrade_cat = "CPU"
+
+            items = catalog_df[catalog_df['CATEGORY_NAME'] == upgrade_cat].copy()
+            if not items.empty:
+                items = items.sort_values(by='LIST_PRICE')
+                upgrade_budget = int(budget * 0.45)
+                best_upgrade = items[items['LIST_PRICE'] <= upgrade_budget]
+                chosen_upgrade = best_upgrade.iloc[-1] if not best_upgrade.empty else items.iloc[-1]
+
+                build[upgrade_cat] = {
+                    "name": chosen_upgrade['PRODUCT_NAME'],
+                    "price": chosen_upgrade['LIST_PRICE'],
+                    "desc": chosen_upgrade.get('DESCRIPTION', '')[:100]
+                }
+
+        # ====================== EXIBE RESULTADO ======================
         col1, col2, col3, col4 = st.columns(4)
 
         with col1:
@@ -137,9 +162,10 @@ with tab_builder:
             st.success(
                 f"💡 **Inspirado no BuildRedux**: {build_match['BUILD_NAME']} (R$ {build_match['TOTAL_PRICE_BRL']:,.2f})")
 
+        # LÓGICA CORRIGIDA DE ORÇAMENTO
         if total > budget:
             st.warning("⚠️ Um pouco acima do orçamento.")
-        elif total < budget * 0.65:  # bem abaixo do orçamento
+        elif total < budget * 0.65:
             st.info("⚠️ Configuração econômica. Ainda sobrou bastante orçamento para upgrades!")
         else:
             st.balloons()
