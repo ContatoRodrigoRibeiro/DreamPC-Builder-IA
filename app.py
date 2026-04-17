@@ -209,3 +209,4 @@ with tab_catalog:
                      width='stretch', hide_index=True)
 
 st.caption("Dados do MEUPC.NET + BuildRedux | IA via Groq (llama-3.3-70b)")
+</code></pre>
