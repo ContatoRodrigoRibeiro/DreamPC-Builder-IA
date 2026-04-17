@@ -68,7 +68,7 @@ with tab_builder:
                                  prompt_lower)
         budget = int(budget_match.group(1).replace('.', '').replace(',', '')) if budget_match else 8500
 
-        # Alocação mais agressiva para usar melhor o orçamento
+        # Alocação agressiva para usar quase todo o orçamento
         if any(k in prompt_lower for k in ["gamer", "gaming", "jogos", "1440", "1080"]):
             allocation = {"CPU": 0.20, "Video Card": 0.50, "Mother Board": 0.10, "Storage": 0.20}
         elif any(k in prompt_lower for k in ["4k", "streaming", "stream"]):
@@ -88,7 +88,7 @@ with tab_builder:
                 filtered['diff'] = abs(filtered['TOTAL_PRICE_BRL'] - budget)
                 build_match = filtered.sort_values('diff').iloc[0]
 
-        # Monta configuração
+        # Monta configuração inicial
         build = {}
         remaining = budget
 
@@ -111,9 +111,9 @@ with tab_builder:
             }
             remaining -= chosen['LIST_PRICE']
 
-        # UPGRADE AUTOMÁTICO se o total ficou muito baixo
+        # UPGRADE AUTOMÁTICO se sobrou dinheiro
         total = sum(item["price"] for item in build.values())
-        if total < budget * 0.80:  # Se gastou menos de 80% do orçamento
+        if total < budget * 0.85:
             if any(k in prompt_lower for k in ["gamer", "gaming", "jogos", "1440", "1080", "4k"]):
                 upgrade_cat = "Video Card"
             else:
@@ -162,7 +162,7 @@ with tab_builder:
             st.success(
                 f"💡 **Inspirado no BuildRedux**: {build_match['BUILD_NAME']} (R$ {build_match['TOTAL_PRICE_BRL']:,.2f})")
 
-        # Mensagens corrigidas
+        # Mensagens de orçamento corrigidas
         if total > budget:
             st.warning("⚠️ Um pouco acima do orçamento.")
         elif total < budget * 0.65:
@@ -214,4 +214,4 @@ with tab_catalog:
         st.dataframe(buildredux_df[['BUILD_NAME', 'TOTAL_PRICE_BRL', 'FULL_SPECS']],
                      width='stretch', hide_index=True)
 
-st.caption("Dados do MEUPC.NET + BuildRedux")
+st.caption(" Dados do MEUPC.NET + BuildRedux")
