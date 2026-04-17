@@ -50,11 +50,11 @@ with tab_builder:
 
     for i, ex in enumerate(examples):
         with col_sug[i]:
-            if st.button(ex, use_container_width=True, key=f"ex_{i}"):
+            if st.button(ex, width='stretch', key=f"ex_{i}"):
                 st.session_state.prompt = ex
                 st.rerun()
 
-    if st.button("🚀 Montar PC dos Sonhos com IA", type="primary", use_container_width=True):
+    if st.button("🚀 Montar PC dos Sonhos com IA", type="primary", width='stretch'):
         if not st.session_state.prompt.strip():
             st.warning("Digite uma descrição ou escolha uma sugestão!")
             st.stop()
@@ -63,22 +63,20 @@ with tab_builder:
 
         prompt_lower = st.session_state.prompt.lower()
 
-        # Detecta orçamento
         budget_match = re.search(r'(?:até|orçamento|de|até r\$|r\$)\s*(\d{1,3}(?:\.\d{3})*|\d+)(?:[.,]\d{2})?',
                                  prompt_lower)
         budget = int(budget_match.group(1).replace('.', '').replace(',', '')) if budget_match else 8500
 
-        # Alocação inicial (mais agressiva)
         if any(k in prompt_lower for k in ["gamer", "gaming", "jogos", "1440", "1080"]):
-            allocation = {"CPU": 0.20, "Video Card": 0.50, "Mother Board": 0.10, "Storage": 0.20}
+            allocation = {"CPU": 0.22, "Video Card": 0.48, "Mother Board": 0.10, "Storage": 0.20}
         elif any(k in prompt_lower for k in ["4k", "streaming", "stream"]):
-            allocation = {"CPU": 0.22, "Video Card": 0.52, "Mother Board": 0.10, "Storage": 0.16}
+            allocation = {"CPU": 0.25, "Video Card": 0.50, "Mother Board": 0.10, "Storage": 0.15}
         elif any(k in prompt_lower for k in ["edição", "vídeo", "render", "3d", "photoshop", "premiere"]):
-            allocation = {"CPU": 0.40, "Video Card": 0.35, "Mother Board": 0.12, "Storage": 0.13}
+            allocation = {"CPU": 0.38, "Video Card": 0.35, "Mother Board": 0.12, "Storage": 0.15}
         elif any(k in prompt_lower for k in ["trabalho", "escritório", "multitarefa", "produtividade"]):
-            allocation = {"CPU": 0.35, "Video Card": 0.25, "Mother Board": 0.15, "Storage": 0.25}
+            allocation = {"CPU": 0.30, "Video Card": 0.25, "Mother Board": 0.15, "Storage": 0.30}
         else:
-            allocation = {"CPU": 0.28, "Video Card": 0.35, "Mother Board": 0.15, "Storage": 0.22}
+            allocation = {"CPU": 0.28, "Video Card": 0.32, "Mother Board": 0.15, "Storage": 0.25}
 
         build_match = None
         if not buildredux_df.empty:
@@ -88,7 +86,6 @@ with tab_builder:
                 filtered['diff'] = abs(filtered['TOTAL_PRICE_BRL'] - budget)
                 build_match = filtered.sort_values('diff').iloc[0]
 
-        # Monta configuração inicial
         build = {}
         remaining = budget
 
@@ -111,28 +108,6 @@ with tab_builder:
             }
             remaining -= chosen['LIST_PRICE']
 
-        # MELHORIA: Se sobrou muito orçamento, faz upgrade automático no componente principal
-        total = sum(item["price"] for item in build.values())
-        if total < budget * 0.85:  # Se gastou menos de 85% do orçamento
-            if any(k in prompt_lower for k in ["gamer", "gaming", "jogos", "1440", "1080", "4k"]):
-                upgrade_cat = "Video Card"
-            else:
-                upgrade_cat = "CPU"
-
-            items = catalog_df[catalog_df['CATEGORY_NAME'] == upgrade_cat].copy()
-            if not items.empty:
-                items = items.sort_values(by='LIST_PRICE')
-                upgrade_budget = int(budget * 0.45)
-                best_upgrade = items[items['LIST_PRICE'] <= upgrade_budget]
-                chosen_upgrade = best_upgrade.iloc[-1] if not best_upgrade.empty else items.iloc[-1]
-
-                build[upgrade_cat] = {
-                    "name": chosen_upgrade['PRODUCT_NAME'],
-                    "price": chosen_upgrade['LIST_PRICE'],
-                    "desc": chosen_upgrade.get('DESCRIPTION', '')[:100]
-                }
-
-        # Exibe resultado
         col1, col2, col3, col4 = st.columns(4)
 
         with col1:
@@ -162,13 +137,11 @@ with tab_builder:
             st.success(
                 f"💡 **Inspirado no BuildRedux**: {build_match['BUILD_NAME']} (R$ {build_match['TOTAL_PRICE_BRL']:,.2f})")
 
-        if total > budget:
-            st.warning("⚠️ Um pouco acima do orçamento.")
-        elif total < budget * 0.65:
-            st.info("⚠️ Configuração econômica. Ainda sobrou orçamento para upgrades.")
-        else:
+        if total <= budget:
             st.balloons()
             st.success("✅ Configuração perfeita dentro do orçamento!")
+        else:
+            st.warning("⚠️ Um pouco acima do orçamento.")
 
 # ====================== TAB 2 - COMPARADOR DE PEÇAS ======================
 with tab_comparator:
@@ -188,12 +161,12 @@ with tab_comparator:
             placeholder="Escolha os produtos..."
         )
 
-    if st.button("Comparar Produtos", type="primary", use_container_width=True) and len(produtos_selecionados) >= 2:
+    if st.button("Comparar Produtos", type="primary", width='stretch') and len(produtos_selecionados) >= 2:
         df_compare = produtos_categoria[produtos_categoria['PRODUCT_NAME'].isin(produtos_selecionados)].copy()
         df_compare['Preço'] = df_compare['LIST_PRICE'].apply(
             lambda x: f"R$ {x:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.'))
         compare_table = df_compare[['PRODUCT_NAME', 'Preço', 'DESCRIPTION']].set_index('PRODUCT_NAME').T
-        st.dataframe(compare_table, use_container_width=True, hide_index=False)
+        st.dataframe(compare_table, width='stretch', hide_index=False)
     elif len(produtos_selecionados) >= 2:
         st.info("Clique no botão acima para gerar a comparação.")
     else:
@@ -206,11 +179,11 @@ with tab_catalog:
 
     with tab_cat1:
         st.dataframe(catalog_df[['CATEGORY_NAME', 'PRODUCT_NAME', 'LIST_PRICE', 'DESCRIPTION']],
-                     use_container_width=True, hide_index=True)
+                     width='stretch', hide_index=True)
 
     with tab_cat2:
         buildredux_df['TOTAL_PRICE_BRL'] = buildredux_df['TOTAL_PRICE'] * 5.30
         st.dataframe(buildredux_df[['BUILD_NAME', 'TOTAL_PRICE_BRL', 'FULL_SPECS']],
-                     use_container_width=True, hide_index=True)
+                     width='stretch', hide_index=True)
 
 st.caption("Dados do MEUPC.NET + BuildRedux")
